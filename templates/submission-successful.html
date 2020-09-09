@@ -1,0 +1,16 @@
+<!--submission-successful.html-->
+
+<!--Embed the header.html template at this location-->
+{{ template "header.html" .}}
+
+<div>
+  <div class="alert alert-success" role="alert">
+    The recording was successfully uploaded!
+  </div>
+  
+  <!--Display the linked title of the newly created recording-->
+  <a href="/recording/view/{{.payload.ID}}">{{.payload.Title}}</a>
+</div>
+    
+<!--Embed the footer.html template at this location-->
+{{ template "footer.html" .}}

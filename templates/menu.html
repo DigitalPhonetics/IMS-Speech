@@ -1,0 +1,29 @@
+<!--menu.html-->
+
+<nav class="navbar navbar-expand-sm navbar-light bg-light">
+    <a class="navbar-brand" href="/">Home</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarNav">
+    <ul class="navbar-nav">
+      {{ if .is_logged_in }}
+        <!--Display this link only when the user is logged in-->
+        <li class="nav-item"><a class="nav-link" href="/recording/upload">Upload recording</a></li>
+      {{end}} 
+      {{ if not .is_logged_in }}
+        <!--Display this link only when the user is not logged in-->
+        <li class="nav-item"><a class="nav-link" href="/u/register">Register</a></li>
+      {{end}} 
+      {{ if not .is_logged_in }}
+        <!--Display this link only when the user is not logged in-->
+        <li class="nav-item"><a class="nav-link" href="/u/login">Login</a></li>
+      {{end}} 
+      {{ if .is_logged_in }}
+        <!--Display this link only when the user is logged in-->
+        <li class="nav-item"><a class="nav-link" href="/u/logout">Logout</a></li>
+      {{end}}
+    </ul>
+    </div>
+</nav>

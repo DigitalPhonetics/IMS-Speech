@@ -1,0 +1,18 @@
+<!--index.html-->
+
+<!--Embed the header.html template at this location-->
+{{ template "header.html" .}}
+
+  <!--Loop over the `payload` variable, which is the list of recordings-->
+  {{range .payload }}
+    <!--Create the link for the recording based on its ID-->
+    <a href="/recording/view/{{.ID}}">
+      <!--Display the title of the recording -->
+      <h2>{{.Title}}</h2>
+    </a>
+  {{else}}
+    Please <a href="/recording/upload">upload</a> some recordings.
+  {{end}}
+
+<!--Embed the footer.html template at this location-->
+{{ template "footer.html" .}}
