@@ -7,12 +7,15 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/gomail.v2"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -24,6 +27,7 @@ type User struct {
 	Password string `gorm:"not null" json:"password" form: "password"`
 	Names    string `json:"names"`
 	Status   uint   `gorm:"not null;default:0" json:"status"`
+	Token    string `json:"token"`
 }
 
 // Recording struct
@@ -99,8 +103,7 @@ func getRecording(c *gin.Context) {
 	if recordingID, err := strconv.ParseUint(c.Param("recording_id"), 10, 32); err == nil {
 		// Check if the recording exists
 		if recording, err := getRecordingByID(uint(recordingID)); err == nil {
-			render(c, gin.H{
-				"payload": recording}, "recording.html")
+			render(c, gin.H{"payload": recording}, "recording.html")
 
 		} else {
 			// If the recording is not found, abort with an error
@@ -164,26 +167,31 @@ func hashPassword(password string) (string, error) {
 }
 
 func performLogin(c *gin.Context) {
-	// Obtain the POSTed username and password values
-	username := c.PostForm("username")
+	// Obtain the POSTed email and password values
+	email := strings.ToLower(c.PostForm("email"))
 	password := c.PostForm("password")
-	user := findUser(username, password)
+	user := findUser(email, password)
 
-	// Check if the username/password combination is valid
+	// Check if the email/password combination is valid
 	if user != nil {
-		// If the username/password is valid, save the user to session
-		session := sessions.Default(c)
-		session.Set("user_id", user.ID)
-		session.Save()
+		if user.Status > 0 {
+			// If the email/password is valid, save the user to session
+			session := sessions.Default(c)
+			session.Set("user_id", user.ID)
+			session.Save()
 
-		// and mark this in context
-		c.Set("is_logged_in", true)
+			// and mark this in context
+			c.Set("is_logged_in", true)
 
-		render(c, gin.H{
-			"title": "Successful Login"}, "login-successful.html")
-
+			render(c, gin.H{
+				"title": "Successful Login"}, "login-successful.html")
+		} else {
+			c.HTML(http.StatusBadRequest, "login.html", gin.H{
+				"ErrorTitle":   "Login Failed",
+				"ErrorMessage": "Please check your mailbox and click the confirmation link"})
+		}
 	} else {
-		// If the username/password combination is invalid,
+		// If the email/password combination is invalid,
 		// show the error message on the login page
 		c.HTML(http.StatusBadRequest, "login.html", gin.H{
 			"ErrorTitle":   "Login Failed",
@@ -208,23 +216,14 @@ func showRegistrationPage(c *gin.Context) {
 }
 
 func register(c *gin.Context) {
-	// Obtain the POSTed username and password values
-	username := c.PostForm("username")
+	// Obtain the POSTed email and password values
+	email := strings.ToLower(c.PostForm("email"))
 	password := c.PostForm("password")
 
-	if user, err := registerNewUser(username, password); err == nil {
-		// If the username/password is valid, save the user to session
-		session := sessions.Default(c)
-		session.Set("user_id", user.ID)
-		session.Save()
-
-		// and mark this in context
-		c.Set("is_logged_in", true)
-
-		render(c, gin.H{}, "login-successful.html")
-
+	if _, err := registerNewUser(email, password); err == nil {
+		render(c, gin.H{}, "register-successful.html")
 	} else {
-		// If the username/password combination is invalid,
+		// If the email/password combination is invalid,
 		// show the error message on the login page
 		c.HTML(http.StatusBadRequest, "register.html", gin.H{
 			"ErrorTitle":   "Registration Failed",
@@ -357,7 +356,75 @@ func registerNewUser(email, password string) (*User, error) {
 		return nil, errors.New(fmt.Sprintf("Could not create user: %v", err))
 	}
 
+	if err := sendConfirmation(user.ID); err != nil {
+		return nil, errors.New(fmt.Sprintf("Could not send confirmation link: %v", err))
+	}
+
 	return &user, nil
+}
+
+func sendConfirmation(userID uint) error {
+	var user User
+
+	token, err := uuid.NewRandom()
+
+	if err != nil {
+		return err
+	}
+
+	db.First(&user, userID)
+	user.Token = token.String()
+	err = db.Save(&user).Error
+
+	if err != nil {
+		return err
+	}
+
+	confirmationLink := fmt.Sprintf("%s/u/confirm/%s", getConfig("URL_BASE"), token)
+	messageBody := fmt.Sprintf("To confirm this email address, go to:<br/>\n<a href=\"%s\">%s</a>", confirmationLink, confirmationLink)
+
+	m := gomail.NewMessage()
+	m.SetHeader("From", "IMS-Speech <pavel.denisov@ims.uni-stuttgart.de>")
+	m.SetHeader("Sender", "st153249@stud.uni-stuttgart.de")
+	m.SetHeader("To", user.Email)
+	m.SetHeader("Subject", "[IMS-Speech] Email Confirmation")
+	m.SetBody("text/html", messageBody)
+
+	smtpPort, _ := strconv.ParseInt(getConfig("SMTP_PORT"), 10, 32)
+
+	d := gomail.NewDialer(getConfig("SMTP_HOST"), int(smtpPort), getConfig("SMTP_USER"), getConfig("SMTP_PASSWORD"))
+
+	if err := d.DialAndSend(m); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func performConfirmation(c *gin.Context) {
+	token := c.Param("token")
+
+	if _, err := uuid.Parse(token); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	var user User
+	db.Where(&User{Token: token}).First(&user)
+
+	if user.Email == "" {
+		c.AbortWithError(http.StatusBadRequest, errors.New("Invalid confirmation link"))
+		return
+	}
+
+	user.Token = ""
+	user.Status = 1
+	if err := db.Save(&user).Error; err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	render(c, gin.H{}, "confirmation.html")
 }
 
 func initializeRoutes(app *gin.Engine) {
@@ -393,6 +460,9 @@ func initializeRoutes(app *gin.Engine) {
 		// Handle POST requests at /u/register
 		// Ensure that the user is not logged in by using the middleware
 		userRoutes.POST("/register", ensureNotLoggedIn(), register)
+
+		// Handle GET requests at /u/confirm/some_token
+		userRoutes.GET("/confirm/:token", ensureNotLoggedIn(), performConfirmation)
 	}
 
 	// Group recording related routes together
