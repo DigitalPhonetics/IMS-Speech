@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -13,70 +12,14 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
-	"gopkg.in/gomail.v2"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+
+	"simple-web-asr/helper"
+	"simple-web-asr/model"
 )
 
-// User struct
-type User struct {
-	gorm.Model
-	Email    string `gorm:"unique_index;not null" json:"email" form:"email"`
-	Password string `gorm:"not null" json:"password" form: "password"`
-	Names    string `json:"names"`
-	Status   uint   `gorm:"not null;default:0" json:"status"`
-	Token    string `json:"token"`
-}
-
-// Recording struct
-type Recording struct {
-	gorm.Model
-	UserID   uint   `gorm:"not null" json:"user_id"`
-	Title    string `gorm:"not null" json:"name"`
-	Filename string `gorm:"not null" json:"file"`
-	Language string `gorm:"not null" json:"language"`
-	Status   uint   `gorm:"not null;default:0" json:"status"`
-}
-
-// Utterance struct
-type Utterance struct {
-	gorm.Model
-	RecordingID uint    `gorm:"not null" json:"recording_id"`
-	Start       float32 `gorm:"not null" json:"start"`
-	End         float32 `gorm:"not null" json:"end"`
-	Text        string  `json:"text"`
-}
-
-func getConfig(key string) string {
-	// load .env file
-	err := godotenv.Load(".env")
-	if err != nil {
-		fmt.Print("Error loading .env file")
-	}
-	return os.Getenv(key)
-}
-
 var db *gorm.DB
-
-func connectDB() {
-	var err error
-	p := getConfig("DB_PORT")
-	port, err := strconv.ParseUint(p, 10, 32)
-	dsn := fmt.Sprintf("host=%s port=%d user=%s dbname=%s sslmode=disable", getConfig("DB_HOST"), port, getConfig("DB_USER"), getConfig("DB_NAME"))
-
-	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
-
-	if err != nil {
-		fmt.Printf("%s\n", dsn)
-		panic("failed to connect database")
-	}
-
-	fmt.Println("Connection Opened to Database")
-	db.AutoMigrate(&Recording{}, &Utterance{}, &User{})
-	fmt.Println("Database Migrated")
-}
 
 func showIndexPage(c *gin.Context) {
 	session := sessions.Default(c)
@@ -140,7 +83,7 @@ func uploadRecording(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 	}
 
-	localFilename := fmt.Sprintf("%s/%07d.dat", getConfig("DATA_DIR"), r.ID)
+	localFilename := helper.RecordingFilename(r.ID)
 
 	if err := c.SaveUploadedFile(file, localFilename); err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
@@ -294,15 +237,15 @@ func setUserStatus() gin.HandlerFunc {
 }
 
 // Return a list of all recordings
-func getAllRecordingsByUserID(userID uint) []Recording {
-	var recordings []Recording
-	db.Where(&Recording{UserID: userID}).Not("status = 0").Find(&recordings)
+func getAllRecordingsByUserID(userID uint) []model.Recording {
+	var recordings []model.Recording
+	db.Where(&model.Recording{UserID: userID}).Not("status = 0").Find(&recordings)
 	return recordings
 }
 
 // Fetch a recording based on the ID supplied
-func getRecordingByID(id uint) (*Recording, error) {
-	var recording Recording
+func getRecordingByID(id uint) (*model.Recording, error) {
+	var recording model.Recording
 	db.First(&recording, id)
 
 	if recording.Title == "" {
@@ -313,15 +256,15 @@ func getRecordingByID(id uint) (*Recording, error) {
 }
 
 // Create a new recording record
-func createRecording(userID uint, title, filename, language string) (*Recording, error) {
-	r := Recording{UserID: userID, Title: title, Filename: filename, Language: language}
+func createRecording(userID uint, title, filename, language string) (*model.Recording, error) {
+	r := model.Recording{UserID: userID, Title: title, Filename: filename, Language: language}
 	err := db.Create(&r).Error
 	return &r, err
 }
 
 // Update status of the recording record
-func updateRecordingStatus(r *Recording, status uint) error {
-	var recording Recording
+func updateRecordingStatus(r *model.Recording, status uint) error {
+	var recording model.Recording
 
 	db.First(&recording, r.ID)
 	recording.Status = status
@@ -331,9 +274,9 @@ func updateRecordingStatus(r *Recording, status uint) error {
 }
 
 // Check if the username and password combination is valid
-func findUser(email, password string) *User {
-	var user User
-	db.Where(&User{Email: email}).First(&user)
+func findUser(email, password string) *model.User {
+	var user model.User
+	db.Where(&model.User{Email: email}).First(&user)
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		return nil
@@ -343,8 +286,8 @@ func findUser(email, password string) *User {
 }
 
 // Register a new user with the given username and password
-func registerNewUser(email, password string) (*User, error) {
-	user := User{Email: email, Password: password}
+func registerNewUser(email, password string) (*model.User, error) {
+	user := model.User{Email: email, Password: password}
 
 	hash, err := hashPassword(user.Password)
 	if err != nil {
@@ -364,7 +307,7 @@ func registerNewUser(email, password string) (*User, error) {
 }
 
 func sendConfirmation(userID uint) error {
-	var user User
+	var user model.User
 
 	token, err := uuid.NewRandom()
 
@@ -380,21 +323,9 @@ func sendConfirmation(userID uint) error {
 		return err
 	}
 
-	confirmationLink := fmt.Sprintf("%s/u/confirm/%s", getConfig("URL_BASE"), token)
+	confirmationLink := fmt.Sprintf("%s/u/confirm/%s", helper.GetConfig("URL_BASE"), token)
 	messageBody := fmt.Sprintf("To confirm this email address, go to:<br/>\n<a href=\"%s\">%s</a>", confirmationLink, confirmationLink)
-
-	m := gomail.NewMessage()
-	m.SetHeader("From", "IMS-Speech <pavel.denisov@ims.uni-stuttgart.de>")
-	m.SetHeader("Sender", "st153249@stud.uni-stuttgart.de")
-	m.SetHeader("To", user.Email)
-	m.SetHeader("Subject", "[IMS-Speech] Email Confirmation")
-	m.SetBody("text/html", messageBody)
-
-	smtpPort, _ := strconv.ParseInt(getConfig("SMTP_PORT"), 10, 32)
-
-	d := gomail.NewDialer(getConfig("SMTP_HOST"), int(smtpPort), getConfig("SMTP_USER"), getConfig("SMTP_PASSWORD"))
-
-	if err := d.DialAndSend(m); err != nil {
+	if err := helper.SendEmail(user.Email, "Email Confirmation", messageBody); err != nil {
 		return err
 	}
 
@@ -409,8 +340,8 @@ func performConfirmation(c *gin.Context) {
 		return
 	}
 
-	var user User
-	db.Where(&User{Token: token}).First(&user)
+	var user model.User
+	db.Where(&model.User{Token: token}).First(&user)
 
 	if user.Email == "" {
 		c.AbortWithError(http.StatusBadRequest, errors.New("Invalid confirmation link"))
@@ -487,7 +418,8 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 
 	// Connect to the database
-	connectDB()
+	helper.ConnectDB()
+	db = helper.DB
 
 	// Set the router as the default one provided by Gin
 	app := gin.Default()
@@ -497,7 +429,7 @@ func main() {
 	app.LoadHTMLGlob("templates/*")
 
 	// Enable cookie session
-	store = cookie.NewStore([]byte(getConfig("SESSION_KEY")))
+	store = cookie.NewStore([]byte(helper.GetConfig("SESSION_KEY")))
 	app.Use(sessions.Sessions("ims-speech-session", store))
 
 	// Initialize the routes
