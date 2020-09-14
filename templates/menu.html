@@ -1,7 +1,7 @@
 <!--menu.html-->
 
 <nav class="navbar navbar-expand-sm navbar-light bg-light">
-    <a class="navbar-brand" href="/">Home</a>
+    <a class="navbar-brand" href="{{.url_base}}/">Home</a>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -10,19 +10,19 @@
     <ul class="navbar-nav">
       {{ if .is_logged_in }}
         <!--Display this link only when the user is logged in-->
-        <li class="nav-item"><a class="nav-link" href="/recording/upload">Upload recording</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{.url_base}}/recording/upload">Upload recording</a></li>
       {{end}} 
       {{ if not .is_logged_in }}
         <!--Display this link only when the user is not logged in-->
-        <li class="nav-item"><a class="nav-link" href="/u/register">Register</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{.url_base}}/u/register">Register</a></li>
       {{end}} 
       {{ if not .is_logged_in }}
         <!--Display this link only when the user is not logged in-->
-        <li class="nav-item"><a class="nav-link" href="/u/login">Login</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{.url_base}}/u/login">Login</a></li>
       {{end}} 
       {{ if .is_logged_in }}
         <!--Display this link only when the user is logged in-->
-        <li class="nav-item"><a class="nav-link" href="/u/logout">Logout</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{.url_base}}/u/logout">Logout</a></li>
       {{end}}
     </ul>
     </div>
