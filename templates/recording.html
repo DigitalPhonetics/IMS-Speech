@@ -4,6 +4,7 @@
 {{ template "header.html" .}}
 
 <!--Display the title of the recording-->
+<br/>
 <h2>{{.recording.Title}}
 {{if eq .recording.Status 1 }}<span class="badge badge-info">In queue</span>{{end}}
 {{if eq .recording.Status 2 }}<span class="badge badge-primary">Transcribing</span>{{end}}
@@ -11,15 +12,27 @@
 {{if eq .recording.Status 4 }}<span class="badge badge-danger">Error</span>{{end}}
 </h2>
 
+<br/>
 <div>
 <h3>Filename</h3>
 {{.recording.Filename}}
 </div>
 
 {{if eq .recording.Status 3 }}
+<br/>
 <div>
 
-<h3>Transcription</h3>
+<h3>
+	Transcription
+	<small class="text-muted">
+		(download:
+			<a href="{{$.url_base}}/recording/export/srt/{{.recording.ID}}">.srt</a> |
+			<a href="{{$.url_base}}/recording/export/ttml/{{.recording.ID}}">.ttml</a> |
+			<a href="{{$.url_base}}/recording/export/vtt/{{.recording.ID}}">.vtt</a> |
+			<a href="{{$.url_base}}/recording/export/otr/{{.recording.ID}}">.otr</a> for
+				<a href="https://otranscribe.com/" target="_blank">oTranscribe</a>)
+	</small>
+</h3>
 
 <table class="table table-hover table-sm">
   <thead>

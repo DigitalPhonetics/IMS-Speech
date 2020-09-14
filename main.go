@@ -1,15 +1,20 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"html/template"
+	"mime"
 	"net/http"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/asticode/go-astisub"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
@@ -48,7 +53,7 @@ func showRecordingUploadPage(c *gin.Context) {
 	render(c, gin.H{}, "upload-recording.html")
 }
 
-func getRecording(c *gin.Context) {
+func getRecording(c *gin.Context) (*model.Recording, []model.Utterance) {
 	// Check if the recording ID is valid
 	if recordingID, err := strconv.ParseUint(c.Param("recording_id"), 10, 32); err == nil {
 		// Check if the recording exists
@@ -64,7 +69,7 @@ func getRecording(c *gin.Context) {
 					utterances = getAllUtterancesByRecordingID(recording.ID)
 				}
 
-				render(c, gin.H{"recording": recording, "utterances": utterances}, "recording.html")
+				return recording, utterances
 			} else {
 				c.AbortWithStatus(http.StatusUnauthorized)
 			}
@@ -77,6 +82,98 @@ func getRecording(c *gin.Context) {
 		// If an invalid recording ID is specified in the URL, abort with an error
 		c.AbortWithStatus(http.StatusNotFound)
 	}
+
+	return nil, nil
+}
+
+func getRecordingHTML(c *gin.Context) {
+	recording, utterances := getRecording(c)
+	render(c, gin.H{"recording": recording, "utterances": utterances}, "recording.html")
+}
+
+func getRecordingSubtitles(c *gin.Context) (*astisub.Subtitles, string) {
+	recording, utterances := getRecording(c)
+
+	subtitles := astisub.NewSubtitles()
+
+	for u := range utterances {
+		item := &astisub.Item{}
+
+		item.StartAt = time.Duration(int(utterances[u].Start*1000)) * time.Millisecond
+		item.EndAt = time.Duration(int(utterances[u].End*1000)) * time.Millisecond
+		item.Lines = append(item.Lines, astisub.Line{Items: []astisub.LineItem{{Text: utterances[u].Text}}})
+
+		subtitles.Items = append(subtitles.Items, item)
+	}
+
+	return subtitles, recording.Filename
+}
+
+func getRecordingSRT(c *gin.Context) {
+	subtitles, filename := getRecordingSubtitles(c)
+	buf := &bytes.Buffer{}
+
+	subtitles.WriteToSRT(buf)
+
+	subtitlesFilename := strings.TrimSuffix(filename, filepath.Ext(filename)) + ".srt"
+
+	c.Header("Content-Description", "File Transfer")
+	c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": subtitlesFilename}))
+	c.Data(http.StatusOK, "text/srt", buf.Bytes())
+}
+
+func getRecordingTTML(c *gin.Context) {
+	subtitles, filename := getRecordingSubtitles(c)
+	buf := &bytes.Buffer{}
+
+	subtitles.WriteToTTML(buf)
+
+	subtitlesFilename := strings.TrimSuffix(filename, filepath.Ext(filename)) + ".ttml"
+
+	c.Header("Content-Description", "File Transfer")
+	c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": subtitlesFilename}))
+	c.Data(http.StatusOK, "text/xml", buf.Bytes())
+}
+
+func getRecordingWebVTT(c *gin.Context) {
+	subtitles, filename := getRecordingSubtitles(c)
+	buf := &bytes.Buffer{}
+
+	subtitles.WriteToWebVTT(buf)
+
+	subtitlesFilename := strings.TrimSuffix(filename, filepath.Ext(filename)) + ".vtt"
+
+	c.Header("Content-Description", "File Transfer")
+	c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": subtitlesFilename}))
+	c.Data(http.StatusOK, "text/vtt", buf.Bytes())
+}
+
+func getRecordingOTR(c *gin.Context) {
+	recording, utterances := getRecording(c)
+	filename := recording.Filename
+	otrFilename := strings.TrimSuffix(filename, filepath.Ext(filename)) + ".otr"
+
+	var text string
+
+	for u := range utterances {
+		utt := utterances[u]
+
+		text += "<p>"
+		text += fmt.Sprintf("<span class=\"timestamp\" data-timestamp=\"%f\">%s</span>", utt.Start, formatDuration(utt.Start))
+		text += " " + html.EscapeString(utt.Text) + " "
+		text += fmt.Sprintf("<span class=\"timestamp\" data-timestamp=\"%f\">%s</span>", utt.End, formatDuration(utt.End))
+		text += "<br /></p>"
+	}
+
+	otr := gin.H{}
+	otr["media"] = recording.Filename
+	otr["text"] = text
+
+	bytes, _ := json.Marshal(otr)
+
+	c.Header("Content-Description", "File Transfer")
+	c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": otrFilename}))
+	c.Data(http.StatusOK, "text/json", bytes)
 }
 
 func uploadRecording(c *gin.Context) {
@@ -429,7 +526,7 @@ func initializeRoutes(app *gin.Engine) {
 	recordingRoutes := app.Group("/recording")
 	{
 		// Handle GET requests at /recording/view/some_recording_id
-		recordingRoutes.GET("/view/:recording_id", ensureLoggedIn(), getRecording)
+		recordingRoutes.GET("/view/:recording_id", ensureLoggedIn(), getRecordingHTML)
 
 		// Handle the GET requests at /recording/upload
 		// Show the recording upload page
@@ -439,6 +536,18 @@ func initializeRoutes(app *gin.Engine) {
 		// Handle POST requests at /recording/upload
 		// Ensure that the user is logged in by using the middleware
 		recordingRoutes.POST("/upload", ensureLoggedIn(), uploadRecording)
+
+		// Handle GET requests at /recording/export/srt/some_recording_id
+		recordingRoutes.GET("/export/srt/:recording_id", ensureLoggedIn(), getRecordingSRT)
+
+		// Handle GET requests at /recording/export/ttml/some_recording_id
+		recordingRoutes.GET("/export/ttml/:recording_id", ensureLoggedIn(), getRecordingTTML)
+
+		// Handle GET requests at /recording/export/vtt/some_recording_id
+		recordingRoutes.GET("/export/vtt/:recording_id", ensureLoggedIn(), getRecordingWebVTT)
+
+		// Handle GET requests at /recording/export/otr/some_recording_id
+		recordingRoutes.GET("/export/otr/:recording_id", ensureLoggedIn(), getRecordingOTR)
 	}
 }
 
