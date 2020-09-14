@@ -26,9 +26,7 @@ var DB *gorm.DB
 
 func ConnectDB() {
 	var err error
-	p := GetConfig("DB_PORT")
-	port, err := strconv.ParseUint(p, 10, 32)
-	dsn := fmt.Sprintf("host=%s port=%d user=%s dbname=%s sslmode=disable", GetConfig("DB_HOST"), port, GetConfig("DB_USER"), GetConfig("DB_NAME"))
+	dsn := fmt.Sprintf("user=%s dbname=%s", GetConfig("DB_USER"), GetConfig("DB_NAME"))
 
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
