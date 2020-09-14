@@ -46,8 +46,15 @@ func getRecording(c *gin.Context) {
 	if recordingID, err := strconv.ParseUint(c.Param("recording_id"), 10, 32); err == nil {
 		// Check if the recording exists
 		if recording, err := getRecordingByID(uint(recordingID)); err == nil {
-			render(c, gin.H{"payload": recording}, "recording.html")
+			session := sessions.Default(c)
+			userID := session.Get("user_id")
 
+			// Check if the recording is owned by the current user
+			if userID.(uint) == recording.UserID {
+				render(c, gin.H{"payload": recording}, "recording.html")
+			} else {
+				c.AbortWithStatus(http.StatusUnauthorized)
+			}
 		} else {
 			// If the recording is not found, abort with an error
 			c.AbortWithError(http.StatusNotFound, err)
@@ -402,7 +409,7 @@ func initializeRoutes(app *gin.Engine) {
 	recordingRoutes := app.Group("/recording")
 	{
 		// Handle GET requests at /recording/view/some_recording_id
-		recordingRoutes.GET("/view/:recording_id", getRecording)
+		recordingRoutes.GET("/view/:recording_id", ensureLoggedIn(), getRecording)
 
 		// Handle the GET requests at /recording/upload
 		// Show the recording upload page
