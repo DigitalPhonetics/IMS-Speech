@@ -3,10 +3,12 @@ package main
 import (
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -36,6 +38,11 @@ func showIndexPage(c *gin.Context) {
 
 var store cookie.Store
 
+func formatDuration(seconds float32) string {
+	d := time.Duration(int(seconds*1000)) * time.Millisecond
+	return fmt.Sprintf("%02d:%02d:%05.2f", int32(d.Hours()), int32(d.Minutes()), d.Seconds())
+}
+
 func showRecordingUploadPage(c *gin.Context) {
 	// Call the render function with the name of the template to render
 	render(c, gin.H{}, "upload-recording.html")
@@ -51,7 +58,13 @@ func getRecording(c *gin.Context) {
 
 			// Check if the recording is owned by the current user
 			if userID.(uint) == recording.UserID {
-				render(c, gin.H{"payload": recording}, "recording.html")
+				var utterances []model.Utterance
+
+				if recording.Status == 3 {
+					utterances = getAllUtterancesByRecordingID(recording.ID)
+				}
+
+				render(c, gin.H{"recording": recording, "utterances": utterances}, "recording.html")
 			} else {
 				c.AbortWithStatus(http.StatusUnauthorized)
 			}
@@ -252,6 +265,13 @@ func getAllRecordingsByUserID(userID uint) []model.Recording {
 	return recordings
 }
 
+// Return a list of all utterances
+func getAllUtterancesByRecordingID(recordingID uint) []model.Utterance {
+	var utterances []model.Utterance
+	db.Where(&model.Utterance{RecordingID: recordingID}).Order("start asc").Find(&utterances)
+	return utterances
+}
+
 // Fetch a recording based on the ID supplied
 func getRecordingByID(id uint) (*model.Recording, error) {
 	var recording model.Recording
@@ -433,9 +453,12 @@ func main() {
 	// Set the router as the default one provided by Gin
 	app := gin.Default()
 
+	// Set custom function to format Start and End of utterance
+	app.SetFuncMap(template.FuncMap{"formatDuration": formatDuration})
+
 	// Process the templates at the start so that they don't have to be loaded
 	// from the disk again. This makes serving HTML pages very fast.
-	app.LoadHTMLGlob("templates/*")
+	app.LoadHTMLGlob("templates/*.html")
 
 	// Enable cookie session
 	store = cookie.NewStore([]byte(helper.GetConfig("SESSION_KEY")))

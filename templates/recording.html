@@ -4,10 +4,43 @@
 {{ template "header.html" .}}
 
 <!--Display the title of the recording-->
-<h1>{{.payload.Title}}</h1>
+<h2>{{.recording.Title}}
+{{if eq .recording.Status 1 }}<span class="badge badge-info">In queue</span>{{end}}
+{{if eq .recording.Status 2 }}<span class="badge badge-primary">Transcribing</span>{{end}}
+{{if eq .recording.Status 3 }}<span class="badge badge-success">Transcribed</span>{{end}}
+{{if eq .recording.Status 4 }}<span class="badge badge-danger">Error</span>{{end}}
+</h2>
 
-<!--Display the status of the recording-->
-<p>{{.payload.Filename}}</p>
+<div>
+<h3>Filename</h3>
+{{.recording.Filename}}
+</div>
+
+{{if eq .recording.Status 3 }}
+<div>
+
+<h3>Transcription</h3>
+
+<table class="table table-hover table-sm">
+  <thead>
+    <tr>
+      <th scope="col">Start</th>
+      <th scope="col">End</th>
+      <th scope="col">Text</th>
+    </tr>
+  </thead>
+  <tbody>
+  {{range .utterances }}
+    <tr>
+      <td>{{ formatDuration .Start }}</td>
+      <td>{{ formatDuration .End }}</td>
+      <td>{{ .Text }}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{end}}
 
 <!--Embed the footer.html template at this location-->
 {{ template "footer.html" .}}
