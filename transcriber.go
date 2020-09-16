@@ -44,7 +44,7 @@ func loadTranscription(filename string, recordingID uint) error {
 			if errP != nil {
 				return errP
 			}
-			timesParsed = append(timesParsed, float32(timeParsed) / 100.0)
+			timesParsed = append(timesParsed, float32(timeParsed)/100.0)
 		}
 
 		if parts[1] != "" {
@@ -85,7 +85,7 @@ func transcribe(recording *model.Recording) {
 	cmd := exec.Command(helper.GetConfig("DECODE_CMD"), recordingFilename, recording.Language)
 
 	if err := cmd.Run(); err != nil {
-		log.Println("Failed to transcribe %v: %v", recordingName, err)
+		log.Println(fmt.Sprintf("Failed to transcribe %s: %v", recordingName, err))
 		recording.Status = 4
 	} else {
 		transcriptionFilename := recordingFilename + ".txt"
@@ -103,17 +103,21 @@ func transcribe(recording *model.Recording) {
 	} else {
 		log.Println("Done transcribing", recordingName)
 
-		var user model.User
-		db.First(&user, recording.UserID)
+		if recording.Status == 3 {
+			var user model.User
+			db.First(&user, recording.UserID)
 
-		if user.Email != "" {
-			link := fmt.Sprintf("%s/recording/view/%d", helper.GetConfig("URL_BASE"), recording.ID)
-			body := fmt.Sprintf("To see the transcription, go to:<br/>\n<a href=\"%s\">%s</a>", link, link)
-			if errM := helper.SendEmail(user.Email, "Transcription Notification", body); errM != nil {
-				log.Println("Failed to send email", errM)
-			} else {
-				log.Println("Email sent to", user.Email)
+			if user.Email != "" {
+				link := fmt.Sprintf("%s/recording/view/%d", helper.GetConfig("URL_BASE"), recording.ID)
+				body := fmt.Sprintf("To see the transcription, go to:<br/>\n<a href=\"%s\">%s</a>", link, link)
+				if errM := helper.SendEmail(user.Email, "Transcription Notification", body); errM != nil {
+					log.Println("Failed to send email", errM)
+				} else {
+					log.Println("Email sent to", user.Email)
+				}
 			}
+		} else {
+			helper.SendEmail("pavel.denisov@ims.uni-stuttgart.de", "Transcription Error", fmt.Sprintf("id: %d", recording.ID))
 		}
 	}
 }
