@@ -15,7 +15,7 @@
     </div>
     {{end}}
     <!--Create a form that POSTs to the `/recording/create` route-->
-    <form class="form" action="/recording/upload" method="post" enctype="multipart/form-data">
+    <form class="form" action="{{.url_base}}/recording/upload" method="post" enctype="multipart/form-data">
       <div class="form-group">
         <label for="title">Title</label>
         <input type="text" class="form-control" id="title" name="title" placeholder="Leave blank to use file name">

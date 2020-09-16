@@ -14,7 +14,7 @@
     </div>
     {{end}}
     <!--Create a form that POSTs to the `/u/register` route-->
-    <form class="form" action="/u/register" method="POST">
+    <form class="form" action="{{.url_base}}/u/register" method="POST">
       <div class="form-group">
         <label for="email">Email</label>
         <input type="email" class="form-control" id="email" name="email" placeholder="Email">
