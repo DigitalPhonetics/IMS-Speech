@@ -474,7 +474,6 @@ func performConfirmation(c *gin.Context) {
 		return
 	}
 
-	user.Token = ""
 	user.Status = 1
 	if err := db.Save(&user).Error; err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
