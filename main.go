@@ -250,6 +250,7 @@ func performLogin(c *gin.Context) {
 				"title": "Successful Login"}, "login-successful.html")
 		} else {
 			c.HTML(http.StatusBadRequest, "login.html", gin.H{
+				"url_base":     helper.GetConfig("URL_BASE"),
 				"ErrorTitle":   "Login Failed",
 				"ErrorMessage": "Please check your mailbox and click the confirmation link"})
 		}
@@ -257,6 +258,7 @@ func performLogin(c *gin.Context) {
 		// If the email/password combination is invalid,
 		// show the error message on the login page
 		c.HTML(http.StatusBadRequest, "login.html", gin.H{
+			"url_base":     helper.GetConfig("URL_BASE"),
 			"ErrorTitle":   "Login Failed",
 			"ErrorMessage": "Invalid credentials provided"})
 	}
@@ -289,6 +291,7 @@ func register(c *gin.Context) {
 		// If the email/password combination is invalid,
 		// show the error message on the login page
 		c.HTML(http.StatusBadRequest, "register.html", gin.H{
+			"url_base":     helper.GetConfig("URL_BASE"),
 			"ErrorTitle":   "Registration Failed",
 			"ErrorMessage": err.Error()})
 
