@@ -43,9 +43,12 @@ func showIndexPage(c *gin.Context) {
 
 var store cookie.Store
 
-func formatDuration(seconds float32) string {
-	d := time.Duration(int(seconds*1000)) * time.Millisecond
-	return fmt.Sprintf("%02d:%02d:%05.2f", int32(d.Hours()), int32(d.Minutes()), d.Seconds())
+func formatDuration(secondsFloat float32) string {
+	d := time.Duration(int(secondsFloat*1000)) * time.Millisecond
+	hours := int(d.Hours())
+	minutes := int(d.Minutes()) % 60
+	seconds := int(d.Seconds()) % 60
+	return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds)
 }
 
 func showRecordingUploadPage(c *gin.Context) {
