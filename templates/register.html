@@ -13,6 +13,12 @@
       {{.ErrorTitle}}: {{.ErrorMessage}}
     </div>
     {{end}}
+    <div>
+    Please enter email address for notifications and choose your password.
+    You will be able to <a href="{{.url_base}}/u/login">login</a> after
+    you receive the email confirmation message and confirm your email.
+    </div>
+    <br/>
     <!--Create a form that POSTs to the `/u/register` route-->
     <form class="form" action="{{.url_base}}/u/register" method="POST">
       <div class="form-group">

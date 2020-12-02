@@ -14,6 +14,11 @@
       {{.ErrorTitle}}: {{.ErrorMessage}}
     </div>
     {{end}}
+    <div>
+    Please enter email and password that you used during the registration.
+    If you have not registered yet, please go to the <a href="{{.url_base}}/u/register">registration</a> page.
+    </div>
+    <br/>
     <!--Create a form that POSTs to the `/u/login` route-->
     <form class="form" action="{{.url_base}}/u/login" method="POST">
       <div class="form-group">
