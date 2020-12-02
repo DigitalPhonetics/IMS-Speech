@@ -246,8 +246,7 @@ func performLogin(c *gin.Context) {
 			// and mark this in context
 			c.Set("is_logged_in", true)
 
-			render(c, gin.H{
-				"title": "Successful Login"}, "login-successful.html")
+			showIndexPage(c)
 		} else {
 			c.HTML(http.StatusBadRequest, "login.html", gin.H{
 				"url_base":     helper.GetConfig("URL_BASE"),
