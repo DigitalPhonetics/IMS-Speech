@@ -329,6 +329,7 @@ func ensureLoggedIn() gin.HandlerFunc {
 		loggedInInterface, _ := c.Get("is_logged_in")
 		loggedIn := loggedInInterface.(bool)
 		if !loggedIn {
+			showLoginPage(c)
 			c.AbortWithStatus(http.StatusUnauthorized)
 		}
 	}
