@@ -3,20 +3,38 @@
 <!--Embed the header.html template at this location-->
 {{ template "header.html" .}}
 
+<table class="table table-hover table-sm">
+  <tbody>
+  {{range .utterances }}
+    <tr>
+      <td>{{ formatDuration .Start }}</td>
+      <td>{{ formatDuration .End }}</td>
+      <td>{{ .Text }}</td>
+    </tr>
+  {{end}}
   <!--Loop over the `payload` variable, which is the list of recordings-->
   {{range .payload }}
-    <!--Create the link for the recording based on its ID-->
-    <a href="{{$.url_base}}/recording/view/{{.ID}}">
-      <!--Display the title of the recording -->
-      {{.Title}}
+    <tr>
+      <td><a href="{{$.url_base}}/recording/view/{{.ID}}">{{.Title}}</a></td>
+      <td>
       {{if eq .Status 1 }}<span class="badge badge-info">In queue</span>{{end}}
       {{if eq .Status 2 }}<span class="badge badge-primary">Transcribing</span>{{end}}
       {{if eq .Status 3 }}<span class="badge badge-success">Transcribed</span>{{end}}
       {{if eq .Status 4 }}<span class="badge badge-danger">Error</span>{{end}}
-    </a><br/>
+      </td>
+      <td class="text-right">
+        <form action="{{$.url_base}}/recording/delete/{{.ID}}">
+        <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+        </form>
+      </td>
+    <tr/>
   {{else}}
+    <tr><td>
     Please <a href="{{.url_base}}/recording/upload">upload</a> some recordings.
+    </td></tr>
   {{end}}
+  </tbody>
+</table>
 
 <!--Embed the footer.html template at this location-->
 {{ template "footer.html" .}}

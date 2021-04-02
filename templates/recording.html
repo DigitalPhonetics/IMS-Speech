@@ -5,12 +5,21 @@
 
 <!--Display the title of the recording-->
 <br/>
+<div class="row">
+<div class="col">
 <h2>{{.recording.Title}}
 {{if eq .recording.Status 1 }}<span class="badge badge-info">In queue</span>{{end}}
 {{if eq .recording.Status 2 }}<span class="badge badge-primary">Transcribing</span>{{end}}
 {{if eq .recording.Status 3 }}<span class="badge badge-success">Transcribed</span>{{end}}
 {{if eq .recording.Status 4 }}<span class="badge badge-danger">Error</span>{{end}}
 </h2>
+</div>
+<div class="col text-right">
+<form action="{{$.url_base}}/recording/delete/{{.recording.ID}}">
+<button type="submit" class="btn btn-outline-danger">Delete</button>
+</form>
+</div>
+</div>
 
 <br/>
 <div>

@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"mime"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -177,6 +178,19 @@ func getRecordingOTR(c *gin.Context) {
 	c.Header("Content-Description", "File Transfer")
 	c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": otrFilename}))
 	c.Data(http.StatusOK, "text/json", bytes)
+}
+
+func deleteRecording(c *gin.Context) {
+	recording, utterances := getRecording(c)
+
+	recordingFilename := helper.RecordingFilename(recording.ID)
+	os.Remove(recordingFilename)
+	os.Remove(recordingFilename + ".txt")
+
+	db.Unscoped().Delete(utterances)
+	db.Unscoped().Delete(recording)
+
+	c.Redirect(http.StatusTemporaryRedirect, "/")
 }
 
 func uploadRecording(c *gin.Context) {
@@ -553,6 +567,9 @@ func initializeRoutes(app *gin.Engine) {
 
 		// Handle GET requests at /recording/export/otr/some_recording_id
 		recordingRoutes.GET("/export/otr/:recording_id", ensureLoggedIn(), getRecordingOTR)
+
+		// Handle GET requests at /recording/delete/some_recording_id
+		recordingRoutes.GET("/delete/:recording_id", ensureLoggedIn(), deleteRecording)
 	}
 }
 
