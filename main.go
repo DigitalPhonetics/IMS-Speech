@@ -238,6 +238,12 @@ func showLoginPage(c *gin.Context) {
 	}, "login.html")
 }
 
+func showDPSPage(c *gin.Context) {
+	render(c, gin.H{
+		"title": "Data protection statement",
+	}, "dps.html")
+}
+
 func hashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
@@ -511,6 +517,9 @@ func initializeRoutes(app *gin.Engine) {
 
 	// Handle the index route
 	app.GET("/", showIndexPage)
+
+	// Handle the Data protection statement
+	app.GET("/dps", showDPSPage)
 
 	// Group user related routes together
 	userRoutes := app.Group("/u")
