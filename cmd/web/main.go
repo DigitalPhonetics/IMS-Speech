@@ -23,8 +23,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
-	"simple-web-asr/helper"
-	"simple-web-asr/model"
+	"simple-web-asr/internal/helper"
+	"simple-web-asr/internal/model"
 )
 
 var db *gorm.DB
@@ -598,7 +598,7 @@ func main() {
 
 	// Process the templates at the start so that they don't have to be loaded
 	// from the disk again. This makes serving HTML pages very fast.
-	app.LoadHTMLGlob("templates/*.html")
+	app.LoadHTMLGlob("cmd/web/templates/*.html")
 
 	// Enable cookie session
 	store = cookie.NewStore([]byte(helper.GetConfig("SESSION_KEY")))

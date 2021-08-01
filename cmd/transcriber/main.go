@@ -13,8 +13,8 @@ import (
 
 	"gorm.io/gorm"
 
-	"simple-web-asr/helper"
-	"simple-web-asr/model"
+	"simple-web-asr/internal/helper"
+	"simple-web-asr/internal/model"
 )
 
 var db *gorm.DB

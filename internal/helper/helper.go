@@ -10,7 +10,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	"simple-web-asr/model"
+	"simple-web-asr/internal/model"
 )
 
 func GetConfig(key string) string {
