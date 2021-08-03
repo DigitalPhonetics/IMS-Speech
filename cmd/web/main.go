@@ -224,8 +224,7 @@ func uploadRecording(c *gin.Context) {
 	}
 
 	if err := updateRecordingStatus(r, 1); err == nil {
-		render(c, gin.H{
-			"payload": r}, "submission-successful.html")
+		c.JSON(http.StatusOK, gin.H{})
 	} else {
 		c.AbortWithError(http.StatusBadRequest, err)
 	}

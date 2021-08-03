@@ -14,7 +14,7 @@
       {{.ErrorTitle}}: {{.ErrorMessage}}
     </div>
     {{end}}
-    <!--Create a form that POSTs to the `/recording/create` route-->
+    <!--Create a form that POSTs to the `/recording/upload` route-->
     <form class="form" action="{{.url_base}}/recording/upload" method="post" enctype="multipart/form-data">
       <div class="form-group">
         <label for="title">Title</label>
@@ -29,17 +29,22 @@
         </select>
       </div>
       <div class="form-group">
-	  <input id="content" type="file" class="file" name="content[]" multiple>
+	  <input id="content" type="file" class="file" name="content" multiple>
           <script>
           $(document).ready(function() {
             $("#content").fileinput({
               theme: "explorer",
-              uploadUrl: "/file-upload",
+              uploadUrl: "{{.url_base}}/recording/upload",
+              uploadExtraData: function() {
+                return {
+                  title: $("#title").val(),
+                  language: $("#language").val(),
+               };
+              }
             });
           });
           </script>
       </div>
-      <button type="submit" class="btn btn-primary">Upload</button>
     </form>
   </div>
 </div>  
