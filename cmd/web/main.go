@@ -187,7 +187,10 @@ func deleteRecording(c *gin.Context) {
 	os.Remove(recordingFilename)
 	os.Remove(recordingFilename + ".txt")
 
-	db.Unscoped().Delete(utterances)
+	if len(utterances) > 0 {
+		db.Unscoped().Delete(utterances)
+	}
+
 	db.Unscoped().Delete(recording)
 
 	c.Redirect(http.StatusTemporaryRedirect, "/")
