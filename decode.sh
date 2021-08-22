@@ -131,6 +131,8 @@ asr_recog.py \
         --debugmode 0 \
         --verbose 0 \
 	--api v2 \
+        --quantize-asr-model true \
+        --quantize-lm-model true \
         --config ${model}/decode.yaml
 
 json2trn.py ${dumpdir}/result.json ${model}/units.txt --num-spkrs 1 --refs ${dumpdir}/ref.trn --hyps ${dumpdir}/hyp.trn
