@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -29,6 +30,13 @@ import (
 
 var db *gorm.DB
 
+type Format struct {
+	Ext, Mime    string
+	GetRecording func(c *gin.Context) ([]byte, string)
+}
+
+var exportFormat map[string]Format
+
 func showIndexPage(c *gin.Context) {
 	session := sessions.Default(c)
 	userID := session.Get("user_id")
@@ -50,6 +58,10 @@ func formatDuration(secondsFloat float32) string {
 	minutes := int(d.Minutes()) % 60
 	seconds := int(d.Seconds()) % 60
 	return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds)
+}
+
+func changeExtension(filename, extension string) string {
+	return strings.TrimSuffix(filename, filepath.Ext(filename)) + "." + extension
 }
 
 func showRecordingUploadPage(c *gin.Context) {
@@ -113,49 +125,36 @@ func getRecordingSubtitles(c *gin.Context) (*astisub.Subtitles, string) {
 	return subtitles, recording.Filename
 }
 
-func getRecordingSRT(c *gin.Context) {
+func getRecordingSRT(c *gin.Context) ([]byte, string) {
 	subtitles, filename := getRecordingSubtitles(c)
 	buf := &bytes.Buffer{}
 
 	subtitles.WriteToSRT(buf)
 
-	subtitlesFilename := strings.TrimSuffix(filename, filepath.Ext(filename)) + ".srt"
-
-	c.Header("Content-Description", "File Transfer")
-	c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": subtitlesFilename}))
-	c.Data(http.StatusOK, "text/srt", buf.Bytes())
+	return buf.Bytes(), filename
 }
 
-func getRecordingTTML(c *gin.Context) {
+func getRecordingTTML(c *gin.Context) ([]byte, string) {
 	subtitles, filename := getRecordingSubtitles(c)
 	buf := &bytes.Buffer{}
 
 	subtitles.WriteToTTML(buf)
 
-	subtitlesFilename := strings.TrimSuffix(filename, filepath.Ext(filename)) + ".ttml"
-
-	c.Header("Content-Description", "File Transfer")
-	c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": subtitlesFilename}))
-	c.Data(http.StatusOK, "text/xml", buf.Bytes())
+	return buf.Bytes(), filename
 }
 
-func getRecordingWebVTT(c *gin.Context) {
+func getRecordingWebVTT(c *gin.Context) ([]byte, string) {
 	subtitles, filename := getRecordingSubtitles(c)
 	buf := &bytes.Buffer{}
 
 	subtitles.WriteToWebVTT(buf)
 
-	subtitlesFilename := strings.TrimSuffix(filename, filepath.Ext(filename)) + ".vtt"
-
-	c.Header("Content-Description", "File Transfer")
-	c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": subtitlesFilename}))
-	c.Data(http.StatusOK, "text/vtt", buf.Bytes())
+	return buf.Bytes(), filename
 }
 
-func getRecordingOTR(c *gin.Context) {
+func getRecordingOTR(c *gin.Context) ([]byte, string) {
 	recording, utterances := getRecording(c)
 	filename := recording.Filename
-	otrFilename := strings.TrimSuffix(filename, filepath.Ext(filename)) + ".otr"
 
 	var text string
 
@@ -175,9 +174,56 @@ func getRecordingOTR(c *gin.Context) {
 
 	bytes, _ := json.Marshal(otr)
 
+	return bytes, filename
+}
+
+func exportRecordings(c *gin.Context) {
+	var body []byte
+	var filename string
+	var mimeType string
+
+	format := c.Param("format")
+	recordingIDs := strings.Split(c.Param("recording_id"), ",")
+
+	if len(recordingIDs) == 1 {
+		body, filename = exportFormat[format].GetRecording(c)
+		filename = changeExtension(filename, exportFormat[format].Ext)
+		mimeType = exportFormat[format].Mime
+	} else {
+		filename = "recordings_" + strings.ReplaceAll(c.Param("recording_id"), ",", "_") + "." + format + ".zip"
+		mimeType = "application/zip"
+
+		buf := new(bytes.Buffer)
+		zipWriter := zip.NewWriter(buf)
+
+		for i := range recordingIDs {
+			c.Params = []gin.Param{
+				{
+					Key:   "recording_id",
+					Value: recordingIDs[i],
+				},
+			}
+			subtitlesBody, subtitlesFilename := exportFormat[format].GetRecording(c)
+			subtitlesFilename = changeExtension(subtitlesFilename, exportFormat[format].Ext)
+
+			f, err := zipWriter.Create(subtitlesFilename)
+			if err != nil {
+				c.AbortWithError(http.StatusBadRequest, err)
+			}
+
+			_, err = f.Write(subtitlesBody)
+			if err != nil {
+				c.AbortWithError(http.StatusBadRequest, err)
+			}
+		}
+
+		zipWriter.Close()
+		body = buf.Bytes()
+	}
+
 	c.Header("Content-Description", "File Transfer")
-	c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": otrFilename}))
-	c.Data(http.StatusOK, "text/json", bytes)
+	c.Header("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filename}))
+	c.Data(http.StatusOK, mimeType, body)
 }
 
 func deleteRecording(c *gin.Context) {
@@ -567,17 +613,8 @@ func initializeRoutes(app *gin.Engine) {
 		// Ensure that the user is logged in by using the middleware
 		recordingRoutes.POST("/upload", ensureLoggedIn(), uploadRecording)
 
-		// Handle GET requests at /recording/export/srt/some_recording_id
-		recordingRoutes.GET("/export/srt/:recording_id", ensureLoggedIn(), getRecordingSRT)
-
-		// Handle GET requests at /recording/export/ttml/some_recording_id
-		recordingRoutes.GET("/export/ttml/:recording_id", ensureLoggedIn(), getRecordingTTML)
-
-		// Handle GET requests at /recording/export/vtt/some_recording_id
-		recordingRoutes.GET("/export/vtt/:recording_id", ensureLoggedIn(), getRecordingWebVTT)
-
-		// Handle GET requests at /recording/export/otr/some_recording_id
-		recordingRoutes.GET("/export/otr/:recording_id", ensureLoggedIn(), getRecordingOTR)
+		// Handle GET requests at /recording/export/some_format/some_recording_ids
+		recordingRoutes.GET("/export/:format/:recording_id", ensureLoggedIn(), exportRecordings)
 
 		// Handle GET requests at /recording/delete/some_recording_id
 		recordingRoutes.GET("/delete/:recording_id", ensureLoggedIn(), deleteRecording)
@@ -585,6 +622,13 @@ func initializeRoutes(app *gin.Engine) {
 }
 
 func main() {
+	// Initlizalize export format map
+	exportFormat = make(map[string]Format)
+	exportFormat["srt"] = Format{"srt", "text/srt", getRecordingSRT}
+	exportFormat["ttml"] = Format{"ttml", "text/xml", getRecordingTTML}
+	exportFormat["vtt"] = Format{"vtt", "text/vtt", getRecordingWebVTT}
+	exportFormat["otr"] = Format{"otr", "text/json", getRecordingOTR}
+
 	// Set Gin to production mode
 	gin.SetMode(gin.ReleaseMode)
 

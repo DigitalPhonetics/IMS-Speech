@@ -4,18 +4,38 @@
 {{ template "header.html" .}}
 
 <table class="table table-hover table-sm">
-  <tbody>
-  {{range .utterances }}
+  <thead>
     <tr>
-      <td>{{ formatDuration .Start }}</td>
-      <td>{{ formatDuration .End }}</td>
-      <td>{{ .Text }}</td>
+      <th scope="col">
+        <div class="btn-group">
+          <button class="btn btn-secondary btn-sm dropdown-toggle btn-light" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" id="download-button" disabled>
+          <i class="bi bi-download"></i>
+          </button>
+          <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+            <a class="dropdown-item" href="#" id="download-link-srt">.srt</a>
+            <a class="dropdown-item" href="#" id="download-link-ttml">.ttml</a>
+            <a class="dropdown-item" href="#" id="download-link-vtt">.vtt</a>
+            <a class="dropdown-item" href="#" id="download-link-otr">.otr</a>
+          </div>
+         </div>
+      </th>
+      <th scope="col">Title</th>
+      <th scope="col">Filename</th>
+      <th scope="col">Status</th>
+      <th scope="col"></th>
     </tr>
-  {{end}}
+  </thead>
+  <tbody>
   <!--Loop over the `payload` variable, which is the list of recordings-->
   {{range .payload }}
     <tr>
+      <td style="width: 5%">
+        <div class="custom-control custom-checkbox text-center">
+          <input class="form-check-input" type="checkbox" id="download-{{.ID}}" value=""{{if ne .Status 3 }} disabled{{end}}>
+        </div>
+      </td>
       <td><a href="{{$.url_base}}/recording/view/{{.ID}}">{{.Title}}</a></td>
+      <td><a href="{{$.url_base}}/recording/view/{{.ID}}">{{.Filename}}</a></td>
       <td>
       {{if eq .Status 1 }}<span class="badge badge-info">In queue</span>{{end}}
       {{if eq .Status 2 }}<span class="badge badge-primary">Transcribing</span>{{end}}
@@ -35,6 +55,26 @@
   {{end}}
   </tbody>
 </table>
+
+<script>
+$(':checkbox').click(function(e) {
+var checkedIDs = $(":checked").map(function() {
+  if (this.id.substr(0, 9) == "download-") {
+    return this.id.substr(9);
+  }
+}).get().join();
+
+if (checkedIDs == "") {
+  $("#download-button").prop("disabled", true);
+}
+else {
+  $("[id^=download-link-]").each(function() {
+    this.href = "{{.url_base}}/recording/export/" + this.id.substr(14) + "/" + checkedIDs;
+  })
+  $("#download-button").prop("disabled", false);
+}
+});
+</script>
 
 <!--Embed the footer.html template at this location-->
 {{ template "footer.html" .}}
