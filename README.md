@@ -48,3 +48,16 @@ Alternatively, run the decoding from the command line:
 
 `$LANGUAGE` can be `en`, `de` or `ru`.
 The result will be written to `$FILENAME.txt`.
+
+Citation:
+
+```
+@article{denisov2019ims,
+  title={IMS-speech: A speech to text tool},
+  author={Denisov, Pavel and Vu, Ngoc Thang},
+  journal={Studientexte zur Sprachkommunikation: Elektronische Sprachsignalverarbeitung 2019},
+  pages={170--177},
+  year={2019},
+  publisher={TUDpress, Dresden}
+}
+```
