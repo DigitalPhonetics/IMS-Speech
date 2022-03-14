@@ -2,6 +2,13 @@ Install ESPnet including the compiled Kaldi: [Install ESPnet](https://espnet.git
 
 Edit the ESPnet path in `decode.sh`.
 
+Download external models:
+
+```
+cd models
+./download.sh
+```
+
 Create the configuration file `.env`:
 
 ```

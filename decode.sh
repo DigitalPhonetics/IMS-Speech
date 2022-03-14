@@ -14,7 +14,7 @@ recid=$(basename "${file}" | md5sum | awk '{print $1}')
 
 basedir=$(realpath $(dirname $0))
 workdir=$(mktemp -d)
-model=/home/ims/models/${language}
+model=${basedir}/models/${language}
 espnet=/home/ims/espnet
 
 # Segment the audio

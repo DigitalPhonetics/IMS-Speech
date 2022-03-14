@@ -1,3 +1,5 @@
 data
 .env
 *.swp
+models/tdnn_stats_asr_sad_1a
+models/xvector_nnet_1a
