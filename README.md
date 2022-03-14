@@ -39,3 +39,12 @@ Build and run the transcriber daemon:
 go build -o transcriber cmd/transcriber/main.go
 nohup ./transcriber > transcriber.log &
 ```
+
+Alternatively, run the decoding from the command line:
+
+```
+./decode.sh $FILE $LANGUAGE
+```
+
+`$LANGUAGE` can be `en`, `de` or `ru`.
+The result will be written to `$FILENAME.txt`.
