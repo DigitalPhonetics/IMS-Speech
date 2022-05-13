@@ -7,6 +7,7 @@ set -o pipefail
 LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}"
 PS1="${PS1:-}"
 PYTHONPATH="${PYTHONPATH:-}"
+export LC_ALL=C
 
 file=$(realpath "$1")
 language=$2
